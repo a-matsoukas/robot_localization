@@ -12,6 +12,7 @@ from nav2_msgs.msg import ParticleCloud, Particle
 from nav2_msgs.msg import Particle as Nav2Particle
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Point, Quaternion
 from rclpy.duration import Duration
+import random
 import math
 import time
 import numpy as np
@@ -245,7 +246,14 @@ class ParticleFilter(Node):
                       particle cloud around.  If this input is omitted, the odometry will be used """
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
+        xy_range = .3           # cartesian standard deviation 
+        theta_range = 7        # angle degrees standard deviation 
+
         self.particle_cloud = []
+        for i in range(self.n_particles):
+            self.particle_cloud.append(Particle(x=random.gauss(xy_theta[0],xy_range), \
+                                                y=random.gauss(xy_theta[1],xy_range), \
+                                                theta=random.gauss(xy_theta[2], theta_range), w=1.0))
         # TODO create particles
 
         self.normalize_particles()
