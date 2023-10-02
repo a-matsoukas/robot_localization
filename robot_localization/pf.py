@@ -51,6 +51,18 @@ class Particle(object):
 
     # TODO: define additional helper functions if needed
     def update_pose(self, delta_pos_particle, delta_ang):
+        """
+        Using the change in the particle's position, expressed in its own reference frame, 
+        and the change in the particle's angle, 
+        update the position of the particle, expressed in the odom frame
+
+        Args:
+            delta_pos_particle: a 3x1 numpy array expressing the delta in the particle's position [[del x], [del y], [del z = 1]]
+                this is expressed in the particle's reference frame, which means the delta is also its new position, in its own reference frame
+            delta_ang: the change in the particle's angle, in radians
+        Returns:
+            N/A
+        """
 
         # set up tranform matrix from particle reference frame to odom
         T_particle_to_odom = np.array([[cos(self.theta), -sin(self.theta), self.x],
@@ -250,17 +262,28 @@ class ParticleFilter(Node):
         old_x_odom = old_odom_xy_theta[0]
         old_y_odom = old_odom_xy_theta[1]
         old_theta_odom = old_odom_xy_theta[2]
+
+        # applying this matrix to points in the old neato frame will return their coordinates in the odom frame
         T_old_to_odom = np.array([[cos(old_theta_odom), -sin(old_theta_odom), old_x_odom], [
                                  sin(old_theta_odom), cos(old_theta_odom), old_y_odom], [0, 0, 1]])
+
+        # the inverse of the above matrix does the opposite
         T_odom_to_old = np.linalg.inv(T_old_to_odom)
 
-        # find location of neato position in old neato reference frame
-        # this is also the delta from old to new in the neato's reference frame and the particles' reference frames
+        """
+        find location of current neato position in old neato reference frame
+        this is also the delta from old to new in the neato's reference frame and the particles' reference frames
+        """
         current_position = np.array(
             [self.current_odom_xy_theta[0], self.current_odom_xy_theta[1], 1])
+
+        # since the current position is expressed in odom,
+        # multiplying it with T_odom_to_old will tell how far the current position is from the old position,
+        # in the old reference frame
         delta_position = np.matmul(T_odom_to_old, current_position)
         delta_angle = delta[2]
 
+        # update particles using deltas
         for particle in self.particle_cloud:
             particle.update_pose(delta_position, delta_angle)
 
