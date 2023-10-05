@@ -15,6 +15,7 @@ from rclpy.duration import Duration
 import random
 import math
 from math import sin, cos
+from scipy.stats import norm
 import time
 import numpy as np
 from occupancy_field import OccupancyField
@@ -77,6 +78,47 @@ class Particle(object):
         self.y = particle_position_odom[1]
         self.theta = self.theta + delta_ang
 
+    def update_weight(self, ranges, thetas, occupancy_field):
+        # parameters for gaussian and also cutoff function
+        mean = 0
+        sigma = 0.39899
+        step_cutoff = .1
+
+        # transformation matrix from particle reference frame to odom
+        T_particle_to_odom = np.array([[cos(self.theta), -sin(self.theta), self.x],
+                                       [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
+
+        gauss_prod = 1
+        close_points = 0.0
+        for i in range(0, len(ranges), 90):
+            # make sure scan is valid, else just don't use the point
+            if ranges[i] is not None and ranges[i] != 0:
+                # convert polar point to cartesian, in particle frame
+                x = ranges[i] * cos(thetas[i])
+                y = ranges[i] * sin(thetas[i])
+
+                # package points into an array
+                point_in_particle = np.array([[x], [y], [1]])
+
+                # express point in odom
+                point_in_odom = np.matmul(
+                    T_particle_to_odom, point_in_particle)
+
+                # get distance to obstacle nearest to point
+                nearest_dist = float(occupancy_field.get_closest_obstacle_distance(
+                    x=point_in_odom[0], y=point_in_odom[1]))
+
+                if not math.isnan(nearest_dist):
+                    gauss_prod *= norm.pdf(nearest_dist, mean, sigma)
+
+                    if nearest_dist <= step_cutoff:
+                        close_points += 1
+
+        self.w = close_points
+
+        print("Particle Position:", [self.x, self.y],
+              "\n", "Particle Weight (Gauss):", gauss_prod, "\n", "Particle Weight (Step):", close_points)
+
 
 class ParticleFilter(Node):
     """ The class that represents a Particle Filter ROS Node
@@ -107,7 +149,7 @@ class ParticleFilter(Node):
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from
 
-        self.n_particles = 300          # the number of particles to use
+        self.n_particles = 10          # the number of particles to use
 
         # the amount of linear movement before performing an update
         self.d_thresh = 0.2
@@ -303,7 +345,9 @@ class ParticleFilter(Node):
             theta: the angle relative to the robot frame for each corresponding reading 
         """
         # TODO: implement this
-        pass
+
+        for particle in self.particle_cloud:
+            particle.update_weight(r, theta, self.occupancy_field)
 
     def update_initial_pose(self, msg):
         """ Callback function to handle re-initializing the particle filter based on a pose estimate.
@@ -329,6 +373,7 @@ class ParticleFilter(Node):
                                                 y=random.gauss(
                                                     xy_theta[1], xy_range),
                                                 theta=random.gauss(xy_theta[2], theta_range), w=1.0))
+        self.particle_cloud.append(Particle())
         # TODO create particles
 
         self.normalize_particles()
