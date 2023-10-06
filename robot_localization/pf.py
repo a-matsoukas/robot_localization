@@ -14,12 +14,12 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Point, Quaternion
 from rclpy.duration import Duration
 import random
 import math
-from math import sin, cos
+from math import sin, cos, pi
 from scipy.stats import norm
 import time
 import numpy as np
 from occupancy_field import OccupancyField
-from helper_functions import TFHelper
+from helper_functions import TFHelper, draw_random_sample
 from rclpy.qos import qos_profile_sensor_data
 from angle_helpers import quaternion_from_euler
 
@@ -33,12 +33,19 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized
     """
 
-    def __init__(self, x=0.0, y=0.0, theta=0.0, w=1.0):
+    def __init__(self, parent_particle=None, x=0.0, y=0.0, theta=0.0, w=1.0):
         """ Construct a new Particle
             x: the x-coordinate of the hypothesis relative to the map frame
             y: the y-coordinate of the hypothesis relative ot the map frame
             theta: the yaw of KeyboardInterruptthe hypothesis relative to the map frame
             w: the particle weight (the class does not ensure that particle weights are normalized """
+        if parent_particle:
+            x = parent_particle.x
+            y = parent_particle.y
+            theta = parent_particle.theta + random.random() * (pi / 2)
+            w = parent_particle.w
+
+        # TODO: add variance to these values so that particles are not spawned directly on top of the point we ask them to be
         self.w = w
         self.theta = theta
         self.x = x
@@ -330,14 +337,46 @@ class ParticleFilter(Node):
             particle.update_pose(delta_position, delta_angle)
 
     def resample_particles(self):
-        """ Resample the particles according to the new particle weights.
-            The weights stored with each particle should define the probability that a particular
-            particle is selected in the resampling step.  You may want to make use of the given helper
-            function draw_random_sample in helper_functions.py.
+        """ 
+        remove particles based on sorting function, normalize weights, and add new points around survivors
+        with weight basis (output is not normalized)
+
+        TODO: potential args to make function more adjustable: threshold input for on the fly adjustment?
         """
+        # points may come in normalized by update_robot_pose
+
+        # generate average value if each particle was equally weighted for step function
+        threshold = 1/self.n_particles
+
+        # remove particles that exceed weight threshold
+        print(f"pre-resample: {len(self.particle_cloud)} particles")
+        for particle in self.particle_cloud:
+            if particle.w < threshold:
+                self.particle_cloud.remove(particle)
+        print(f"post-resample: {len(self.particle_cloud)} particles")
+
+        if len(self.particle_cloud) == self.n_particles:
+            raise Exception("no particles removed by filtering ")
+
         # make sure the distribution is normalized
         self.normalize_particles()
-        # TODO: fill out the rest of the implementation
+
+        # find information to feed to point resampling: num needed, represent respective weight
+        # int, how many new particles needed
+        to_generate = self.n_particles-len(self.particle_cloud)
+        weights = [particle.w for particle in self.particle_cloud]
+
+        # TODO: refactor so weights list is set up when checking particle weights against threshold
+
+        # generate list of point objects based on likelihood from weight
+        seeds = draw_random_sample(self.particle_cloud, weights, to_generate)
+        for seed_particle in seeds:
+            # feed parent particle to new particle as seed
+            self.particle_cloud.append(Particle(parent_particle=seed_particle))
+
+        if len(self.particle_cloud) != self.n_particles:
+            raise Exception(
+                "New particles generated incorrectly! Desired particle total not reached")
 
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
@@ -368,7 +407,7 @@ class ParticleFilter(Node):
         theta_range = 7        # angle degrees standard deviation
 
         self.particle_cloud = []
-        for i in range(self.n_particles):
+        for _ in range(self.n_particles):
             self.particle_cloud.append(Particle(x=random.gauss(xy_theta[0], xy_range),
                                                 y=random.gauss(
                                                     xy_theta[1], xy_range),
@@ -381,8 +420,18 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-        # TODO: implement this
-        pass
+        # add up all the weights of the particles with a generator expression
+        total_weight = sum(particle.w for particle in self.particle_cloud)
+        # check to see if the range is already normalized
+        # if abs(total_weight-1) < .01:
+        #     raise Exception("This range was already normalized")
+        # catch functions double-normalizing when prototyping
+        # update each weight as itself divided by the total weight of the entries
+        for particle in self.particle_cloud:
+            particle.w = particle.w/total_weight
+        # after for loop print sanity check values
+        print(
+            f"total weight is {sum(particle.w for particle in self.particle_cloud)}")
 
     def publish_particles(self, timestamp):
         msg = ParticleCloud()
