@@ -51,6 +51,18 @@ class Particle(object):
         self.x = x
         self.y = y
 
+    def get_transform(self):
+        """
+        return the transformation matrix from the particle frame to the map frame
+
+        Args:
+            None
+        Returns:
+            T_particle_to_map: a 3 x 3 numpy array representing the transformation matrix from the particle's frame to map
+        """
+        return np.array([[cos(self.theta), -sin(self.theta), self.x],
+                         [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
+
     def as_pose(self):
         """ A helper function to convert a particle to a geometry_msgs/Pose message """
         q = quaternion_from_euler(0, 0, self.theta)
@@ -61,7 +73,7 @@ class Particle(object):
         """
         Using the change in the particle's position, expressed in its own reference frame, 
         and the change in the particle's angle, 
-        update the position of the particle, expressed in the odom frame
+        update the position of the particle, expressed in the map frame
 
         Args:
             delta_pos_particle: a 3x1 numpy array expressing the delta in the particle's position [[del x], [del y], [del z = 1]]
@@ -71,17 +83,13 @@ class Particle(object):
             N/A
         """
 
-        # set up tranform matrix from particle reference frame to odom
-        T_particle_to_odom = np.array([[cos(self.theta), -sin(self.theta), self.x],
-                                       [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
-
         # apply transformation to delta_pos to get the new particle position in odom
-        particle_position_odom = np.matmul(
-            T_particle_to_odom, delta_pos_particle)
+        particle_position_map = np.matmul(
+            self.get_transform(), delta_pos_particle)
 
         # update particle positions and apply the delta theta to the angle
-        self.x = particle_position_odom[0]
-        self.y = particle_position_odom[1]
+        self.x = particle_position_map[0]
+        self.y = particle_position_map[1]
         self.theta = self.theta + delta_ang
 
     def update_weight(self, ranges, thetas, occupancy_field):
@@ -89,10 +97,6 @@ class Particle(object):
         mean = 0
         sigma = 0.39899
         step_cutoff = .1
-
-        # transformation matrix from particle reference frame to odom
-        T_particle_to_odom = np.array([[cos(self.theta), -sin(self.theta), self.x],
-                                       [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
 
         gauss_prod = 1
         close_points = 0.0
@@ -108,7 +112,7 @@ class Particle(object):
 
                 # express point in odom
                 point_in_odom = np.matmul(
-                    T_particle_to_odom, point_in_particle)
+                    self.get_transform(), point_in_particle)
 
                 # get distance to obstacle nearest to point
                 nearest_dist = float(occupancy_field.get_closest_obstacle_distance(
