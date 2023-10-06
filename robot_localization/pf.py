@@ -32,16 +32,18 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized
     """
 
-    def __init__(self, x=0.0, y=0.0, theta=0.0, w=1.0):
+    def __init__(self, x=0.0, y=0.0, theta=0.0, w=1.0, id=0):
         """ Construct a new Particle
             x: the x-coordinate of the hypothesis relative to the map frame
             y: the y-coordinate of the hypothesis relative ot the map frame
             theta: the yaw of KeyboardInterruptthe hypothesis relative to the map frame
-            w: the particle weight (the class does not ensure that particle weights are normalized """
+            w: the particle weight (the class does not ensure that particle weights are normalized
+            id: the id of the particle, from 0 to n_particles - 1, used to index into position matrice"""
         self.w = w
         self.theta = theta
         self.x = x
         self.y = y
+        self.id = id
 
     def as_pose(self):
         """ A helper function to convert a particle to a geometry_msgs/Pose message """
@@ -136,6 +138,8 @@ class ParticleFilter(Node):
         self.scan_to_process = None
         # your particle cloud will go here
         self.particle_cloud = []
+        # 3 x (n_particles - 1) numpy array to hold to positions of the particles
+        self.particle_positions = np.array([[], [], []])
 
         self.current_odom_xy_theta = []
         self.occupancy_field = OccupancyField(self)
@@ -324,12 +328,22 @@ class ParticleFilter(Node):
         theta_range = 7        # angle degrees standard deviation
 
         self.particle_cloud = []
-        for i in range(self.n_particles):
-            self.particle_cloud.append(Particle(x=random.gauss(xy_theta[0], xy_range),
-                                                y=random.gauss(
-                                                    xy_theta[1], xy_range),
-                                                theta=random.gauss(xy_theta[2], theta_range), w=1.0))
+        self.particle_positions = np.array([[], [], []])
+
         # TODO create particles
+
+        for i in range(self.n_particles):
+            x_pos = random.gauss(xy_theta[0], xy_range)
+            y_pos = random.gauss(xy_theta[1], xy_range)
+            z_pos = 1
+            ang = random.gauss(xy_theta[2], theta_range)
+            weight = 1.0
+
+            self.particle_cloud.append(
+                Particle(x=x_pos, y=y_pos, theta=ang, w=weight, id=i))
+
+            np.append(self.particle_positions, np.array(
+                [[x_pos], [y_pos], [z_pos]]), axis=1)
 
         self.normalize_particles()
         self.update_robot_pose()
