@@ -14,7 +14,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Point, Quaternion
 from rclpy.duration import Duration
 import random
 import math
-from math import sin, cos
+from math import sin, cos, pi
 from scipy.stats import norm
 import time
 import numpy as np
@@ -41,8 +41,8 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized """
         if parent_particle:
             x = parent_particle.x
-            x = parent_particle.x
-            theta = parent_particle.theta
+            y = parent_particle.y
+            theta = parent_particle.theta + random.random() * (pi / 2)
             w = parent_particle.w
 
         # TODO: add variance to these values so that particles are not spawned directly on top of the point we ask them to be
@@ -362,8 +362,11 @@ class ParticleFilter(Node):
         self.normalize_particles()
 
         # find information to feed to point resampling: num needed, represent respective weight
+        # int, how many new particles needed
         to_generate = self.n_particles-len(self.particle_cloud)
         weights = [particle.w for particle in self.particle_cloud]
+
+        # TODO: refactor so weights list is set up when checking particle weights against threshold
 
         # generate list of point objects based on likelihood from weight
         seeds = draw_random_sample(self.particle_cloud, weights, to_generate)
@@ -404,7 +407,7 @@ class ParticleFilter(Node):
         theta_range = 7        # angle degrees standard deviation
 
         self.particle_cloud = []
-        for i in range(self.n_particles):
+        for _ in range(self.n_particles):
             self.particle_cloud.append(Particle(x=random.gauss(xy_theta[0], xy_range),
                                                 y=random.gauss(
                                                     xy_theta[1], xy_range),
@@ -420,9 +423,9 @@ class ParticleFilter(Node):
         # add up all the weights of the particles with a generator expression
         total_weight = sum(particle.w for particle in self.particle_cloud)
         # check to see if the range is already normalized
-        if abs(total_weight-1) < .01:
-            raise Exception("This range was already normalized")
-            # catch functions double-normalizing when prototyping
+        # if abs(total_weight-1) < .01:
+        #     raise Exception("This range was already normalized")
+        # catch functions double-normalizing when prototyping
         # update each weight as itself divided by the total weight of the entries
         for particle in self.particle_cloud:
             particle.w = particle.w/total_weight
