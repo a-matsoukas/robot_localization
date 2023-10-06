@@ -378,8 +378,6 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-        # TODO: implement this
-
         for particle in self.particle_cloud:
             particle.update_weight(r, theta, self.occupancy_field)
 
@@ -408,7 +406,6 @@ class ParticleFilter(Node):
                                                     xy_theta[1], xy_range),
                                                 theta=random.gauss(xy_theta[2], theta_range), w=1.0))
         self.particle_cloud.append(Particle())
-        # TODO create particles
 
         self.normalize_particles()
         self.update_robot_pose()
