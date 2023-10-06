@@ -49,7 +49,6 @@ class Particle(object):
         return Pose(position=Point(x=self.x, y=self.y, z=0.0),
                     orientation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3]))
 
-    # TODO: define additional helper functions if needed
     def update_pose(self, delta_pos_particle, delta_ang):
         """
         Using the change in the particle's position, expressed in its own reference frame, 
@@ -113,8 +112,6 @@ class ParticleFilter(Node):
         self.d_thresh = 0.2
         # the amount of angular movement before performing an update
         self.a_thresh = math.pi/6
-
-        # TODO: define additional constants if needed
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(
@@ -255,8 +252,6 @@ class ParticleFilter(Node):
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
-
-        # TODO: modify particles using delta
 
         # create transformation matrix from odom to old neato reference frame
         old_x_odom = old_odom_xy_theta[0]
