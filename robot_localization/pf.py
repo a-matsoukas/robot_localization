@@ -51,6 +51,18 @@ class Particle(object):
         self.x = x
         self.y = y
 
+    def get_transform(self):
+        """
+        return the transformation matrix from the particle frame to the map frame
+
+        Args:
+            None
+        Returns:
+            T_particle_to_map: a 3 x 3 numpy array representing the transformation matrix from the particle's frame to map
+        """
+        return np.array([[cos(self.theta), -sin(self.theta), self.x],
+                         [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
+
     def as_pose(self):
         """ A helper function to convert a particle to a geometry_msgs/Pose message """
         q = quaternion_from_euler(0, 0, self.theta)
@@ -61,7 +73,7 @@ class Particle(object):
         """
         Using the change in the particle's position, expressed in its own reference frame, 
         and the change in the particle's angle, 
-        update the position of the particle, expressed in the odom frame
+        update the position of the particle, expressed in the map frame
 
         Args:
             delta_pos_particle: a 3x1 numpy array expressing the delta in the particle's position [[del x], [del y], [del z = 1]]
@@ -71,59 +83,14 @@ class Particle(object):
             N/A
         """
 
-        # set up tranform matrix from particle reference frame to odom
-        T_particle_to_odom = np.array([[cos(self.theta), -sin(self.theta), self.x],
-                                       [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
-
         # apply transformation to delta_pos to get the new particle position in odom
-        particle_position_odom = np.matmul(
-            T_particle_to_odom, delta_pos_particle)
+        particle_position_map = np.matmul(
+            self.get_transform(), delta_pos_particle)
 
         # update particle positions and apply the delta theta to the angle
-        self.x = particle_position_odom[0]
-        self.y = particle_position_odom[1]
+        self.x = particle_position_map[0]
+        self.y = particle_position_map[1]
         self.theta = self.theta + delta_ang
-
-    def update_weight(self, ranges, thetas, occupancy_field):
-        # parameters for gaussian and also cutoff function
-        mean = 0
-        sigma = 0.39899
-        step_cutoff = .1
-
-        # transformation matrix from particle reference frame to odom
-        T_particle_to_odom = np.array([[cos(self.theta), -sin(self.theta), self.x],
-                                       [sin(self.theta), cos(self.theta), self.y], [0, 0, 1]])
-
-        gauss_prod = 1
-        close_points = 0.0
-        for i in range(0, len(ranges), 90):
-            # make sure scan is valid, else just don't use the point
-            if ranges[i] is not None and ranges[i] != 0:
-                # convert polar point to cartesian, in particle frame
-                x = ranges[i] * cos(thetas[i])
-                y = ranges[i] * sin(thetas[i])
-
-                # package points into an array
-                point_in_particle = np.array([[x], [y], [1]])
-
-                # express point in odom
-                point_in_odom = np.matmul(
-                    T_particle_to_odom, point_in_particle)
-
-                # get distance to obstacle nearest to point
-                nearest_dist = float(occupancy_field.get_closest_obstacle_distance(
-                    x=point_in_odom[0], y=point_in_odom[1]))
-
-                if not math.isnan(nearest_dist):
-                    gauss_prod *= norm.pdf(nearest_dist, mean, sigma)
-
-                    if nearest_dist <= step_cutoff:
-                        close_points += 1
-
-        self.w = close_points
-
-        print("Particle Position:", [self.x, self.y],
-              "\n", "Particle Weight (Gauss):", gauss_prod, "\n", "Particle Weight (Step):", close_points)
 
 
 class ParticleFilter(Node):
@@ -155,7 +122,7 @@ class ParticleFilter(Node):
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from
 
-        self.n_particles = 10          # the number of particles to use
+        self.n_particles = 300          # the number of particles to use
 
         # the amount of linear movement before performing an update
         self.d_thresh = 0.2
@@ -378,8 +345,40 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
+
+        """
+        Scan data in the following section is in the neato/particle frame
+        """
+        # convert r list into numpy array of dimesions (len(r) x 1)
+        range_vec = np.reshape(np.array(r), (-1, 1))
+
+        # create matrix of size (len(theta) x 2), where the first col. is cos(theta[i]) and the second col. is sin(theta[i])
+        theta_vec = np.reshape(np.array(theta), (-1, 1))
+        cos_sin_matrix = np.concatenate(
+            (np.cos(theta_vec), np.sin(theta_vec)), axis=1)
+
+        # column-wise multiplication gives matrix of size (len(r) x 2) of the scan data in cartesian coordinates
+        scan_data_cartesian = range_vec * cos_sin_matrix
+
+        # append a column of 1s to the scan data and transpose to get a (3 x len(r)) matrix
+        scan_points = np.concatenate(
+            (scan_data_cartesian, np.ones((len(r), 1))), axis=1).T
+
+        # distance to nearest point that is considered good enoughs
+        step_cutoff = .1
+
+        # iterate through each particle and update its weight based on the scan data
         for particle in self.particle_cloud:
-            particle.update_weight(r, theta, self.occupancy_field)
+            # express scan data in map
+            scan_points_in_map = np.matmul(
+                particle.get_transform(), scan_points)
+
+            # get distance to obstacle nearest to point
+            nearest_dist = self.occupancy_field.get_closest_obstacle_distance(
+                x=scan_points_in_map[0], y=scan_points_in_map[1])
+
+            # weight will be number of closest distances that are within cutoff value
+            particle.w = float(sum(nearest_dist <= step_cutoff))
 
     def update_initial_pose(self, msg):
         """ Callback function to handle re-initializing the particle filter based on a pose estimate.
