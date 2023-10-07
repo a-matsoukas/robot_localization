@@ -159,7 +159,7 @@ class ParticleFilter(Node):
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from
 
-        self.n_particles = 10          # the number of particles to use
+        self.n_particles = 300          # the number of particles to use
 
         # the amount of linear movement before performing an update
         self.d_thresh = 0.2
@@ -382,8 +382,40 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
+
+        """
+        Scan data in the following section is in the neato/particle frame
+        """
+        # convert r list into numpy array of dimesions (len(r) x 1)
+        range_vec = np.reshape(np.array(r), (-1, 1))
+
+        # create matrix of size (len(theta) x 2), where the first col. is cos(theta[i]) and the second col. is sin(theta[i])
+        theta_vec = np.reshape(np.array(theta), (-1, 1))
+        cos_sin_matrix = np.concatenate(
+            (np.cos(theta_vec), np.sin(theta_vec)), axis=1)
+
+        # column-wise multiplication gives matrix of size (len(r) x 2) of the scan data in cartesian coordinates
+        scan_data_cartesian = range_vec * cos_sin_matrix
+
+        # append a column of 1s to the scan data and transpose to get a (3 x len(r)) matrix
+        scan_points = np.concatenate(
+            (scan_data_cartesian, np.ones((len(r), 1))), axis=1).T
+
+        # distance to nearest point that is considered good enoughs
+        step_cutoff = .1
+
+        # iterate through each particle and update its weight based on the scan data
         for particle in self.particle_cloud:
-            particle.update_weight(r, theta, self.occupancy_field)
+            # express scan data in map
+            scan_points_in_map = np.matmul(
+                particle.get_transform(), scan_points)
+
+            # get distance to obstacle nearest to point
+            nearest_dist = self.occupancy_field.get_closest_obstacle_distance(
+                x=scan_points_in_map[0], y=scan_points_in_map[1])
+
+            # weight will be number of closest distances that are within cutoff value
+            particle.w = float(sum(nearest_dist <= step_cutoff))
 
     def update_initial_pose(self, msg):
         """ Callback function to handle re-initializing the particle filter based on a pose estimate.
