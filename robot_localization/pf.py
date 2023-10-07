@@ -33,23 +33,26 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized
     """
 
-    def __init__(self, parent_particle=None, x=0.0, y=0.0, theta=0.0, w=1.0):
+    def __init__(self, parent_particle=None, pose_and_ranges={'coords':[(0.0, 0.0),.5],'theta':[0.0,pi/2]}):
         """ Construct a new Particle
-            x: the x-coordinate of the hypothesis relative to the map frame
-            y: the y-coordinate of the hypothesis relative ot the map frame
-            theta: the yaw of KeyboardInterruptthe hypothesis relative to the map frame
-            w: the particle weight (the class does not ensure that particle weights are normalized """
-        if parent_particle:
-            x = parent_particle.x
-            y = parent_particle.y
-            theta = parent_particle.theta + random.random() * (pi / 2)
-            w = parent_particle.w
+            parent_particle: Particle object used to generate reseeded Particle object
+            pose_and_ranges: Dictionary with string keys and list values. Item 0 in list is the value and 
+                item 2 is the soft maximum range (3 standard deviations gaussian) of the inputted value
 
-        # TODO: add variance to these values so that particles are not spawned directly on top of the point we ask them to be
-        self.w = w
-        self.theta = theta
-        self.x = x
-        self.y = y
+                pose_and_ranges values~
+                coords: [(x coord, y coord) floats of cartesian seed position, soft max range after randomizing]
+                theta: [float of angle in radians, float soft max angle range after randomizing]
+        """
+        if parent_particle:
+            pose_and_ranges = parent_particle.poses_and_ranges
+
+        self.poses_and_ranges = pose_and_ranges
+        self.w = 1.0
+        
+        # use 1/3 of soft max ranges to get standard deviation for generation
+        self.theta = random.gauss(self.poses_and_ranges['theta'][0], self.poses_and_ranges['theta'][1]/3)
+        self.x = random.gauss(self.poses_and_ranges['coords'][0][0], self.poses_and_ranges['coords'][1]/3)
+        self.y = random.gauss(self.poses_and_ranges['coords'][0][1], self.poses_and_ranges['coords'][1]/3)
 
     def get_transform(self):
         """
@@ -214,10 +217,11 @@ class ParticleFilter(Node):
         elif not self.particle_cloud:
             # now that we have all of the necessary transforms we can update the particle cloud
             self.initialize_particle_cloud(msg.header.stamp)
+            self.update_robot_pose()
         elif self.moved_far_enough_to_update(new_odom_xy_theta):
             # we have moved far enough to do an update!
-            self.update_particles_with_odom()    # update based on odometry
-            self.update_particles_with_laser(
+            self.move_particles_with_odom()    # update based on odometry
+            self.weight_particles_with_laser(
                 r, theta)   # update based on laser scan
             self.update_robot_pose()                # update robot's pose based on particles
             # resample particles to focus on areas of high density
@@ -249,7 +253,7 @@ class ParticleFilter(Node):
         else:
             self.get_logger().warn("Can't set map->odom transform since no odom data received")
 
-    def update_particles_with_odom(self):
+    def move_particles_with_odom(self):
         """ Update the particles using the newly given odometry pose.
             The function computes the value delta which is a tuple (x,y,theta)
             that indicates the change in position and angle between the odometry
@@ -340,7 +344,7 @@ class ParticleFilter(Node):
             raise Exception(
                 "New particles generated incorrectly! Desired particle total not reached")
 
-    def update_particles_with_laser(self, r, theta):
+    def weight_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
@@ -386,28 +390,25 @@ class ParticleFilter(Node):
         xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
             msg.pose.pose)
         self.initialize_particle_cloud(msg.header.stamp, xy_theta)
+        self.update_robot_pose()
 
     def initialize_particle_cloud(self, timestamp, xy_theta=None):
-        """ Initialize the particle cloud.
+        """ Initialize the particle cloud and update robot pose from cloud outputted. 
             Arguments
             xy_theta: a triple consisting of the mean x, y, and theta (yaw) to initialize the
                       particle cloud around.  If this input is omitted, the odometry will be used """
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
                 self.odom_pose)
-        xy_range = .3           # cartesian standard deviation
-        theta_range = 7        # angle degrees standard deviation
+        xy_range = .8           # cartesian soft max (3x standard deviation)
+        theta_range = pi/2        # angle radians soft max (3x standard deviation)
 
         self.particle_cloud = []
+        pose_and_ranges={'coords':[(xy_theta[0], xy_theta[1]),xy_range],'theta':[xy_theta[2],theta_range]}
         for _ in range(self.n_particles):
-            self.particle_cloud.append(Particle(x=random.gauss(xy_theta[0], xy_range),
-                                                y=random.gauss(
-                                                    xy_theta[1], xy_range),
-                                                theta=random.gauss(xy_theta[2], theta_range), w=1.0))
-        self.particle_cloud.append(Particle())
+            self.particle_cloud.append(Particle(pose_and_ranges=pose_and_ranges))
 
         self.normalize_particles()
-        self.update_robot_pose()
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
