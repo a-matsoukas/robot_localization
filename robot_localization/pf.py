@@ -92,43 +92,6 @@ class Particle(object):
         self.y = particle_position_map[1]
         self.theta = self.theta + delta_ang
 
-    def update_weight(self, ranges, thetas, occupancy_field):
-        # parameters for gaussian and also cutoff function
-        mean = 0
-        sigma = 0.39899
-        step_cutoff = .1
-
-        gauss_prod = 1
-        close_points = 0.0
-        for i in range(0, len(ranges), 90):
-            # make sure scan is valid, else just don't use the point
-            if ranges[i] is not None and ranges[i] != 0:
-                # convert polar point to cartesian, in particle frame
-                x = ranges[i] * cos(thetas[i])
-                y = ranges[i] * sin(thetas[i])
-
-                # package points into an array
-                point_in_particle = np.array([[x], [y], [1]])
-
-                # express point in odom
-                point_in_odom = np.matmul(
-                    self.get_transform(), point_in_particle)
-
-                # get distance to obstacle nearest to point
-                nearest_dist = float(occupancy_field.get_closest_obstacle_distance(
-                    x=point_in_odom[0], y=point_in_odom[1]))
-
-                if not math.isnan(nearest_dist):
-                    gauss_prod *= norm.pdf(nearest_dist, mean, sigma)
-
-                    if nearest_dist <= step_cutoff:
-                        close_points += 1
-
-        self.w = close_points
-
-        print("Particle Position:", [self.x, self.y],
-              "\n", "Particle Weight (Gauss):", gauss_prod, "\n", "Particle Weight (Step):", close_points)
-
 
 class ParticleFilter(Node):
     """ The class that represents a Particle Filter ROS Node
