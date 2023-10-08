@@ -33,23 +33,28 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized
     """
 
-    def __init__(self, parent_particle=None, x=0.0, y=0.0, theta=0.0, w=1.0):
+    def __init__(self, parent_particle=None, x_pos=0.0, y_pos=0.0, pos_soft_max=.5, theta=0.0, theta_soft_max=pi/2):
         """ Construct a new Particle
-            x: the x-coordinate of the hypothesis relative to the map frame
-            y: the y-coordinate of the hypothesis relative ot the map frame
-            theta: the yaw of KeyboardInterruptthe hypothesis relative to the map frame
-            w: the particle weight (the class does not ensure that particle weights are normalized """
-        if parent_particle:
-            x = parent_particle.x
-            y = parent_particle.y
-            theta = parent_particle.theta + random.random() * (pi / 2)
-            w = parent_particle.w
+            parent_particle: Particle object used to generate reseeded Particle object
+            x_pos: a float representing the x-coord (in map frame) around which particle should be initialized
+            y_pos: a float representing the y-coord (in map frame) around which particle should be initialized
+            pos_soft_max: a float representing three standard deviations of distance from x_pos and y_pos that
+                the new particle x and y should be within
+            theta: a float representing the angle (in radians) around which particle should be initialized
+            theta_soft_max: a float representing three standard deviations of angle from theta that the new
+                particle theta should be within
+        """
+        base_x = x_pos if parent_particle is None else parent_particle.x
+        base_y = y_pos if parent_particle is None else parent_particle.y
+        base_theta = theta if parent_particle is None else parent_particle.theta
 
-        # TODO: add variance to these values so that particles are not spawned directly on top of the point we ask them to be
-        self.w = w
-        self.theta = theta
-        self.x = x
-        self.y = y
+        # use 1/3 of soft max ranges to get standard deviation for generation
+        self.x = random.gauss(base_x, pos_soft_max / 3)
+        self.y = random.gauss(base_y, pos_soft_max / 3)
+        self.theta = random.gauss(base_theta, theta_soft_max / 3)
+
+        # set weight to be 1.0 for new particles
+        self.w = 1.0
 
     def get_transform(self):
         """
@@ -214,10 +219,11 @@ class ParticleFilter(Node):
         elif not self.particle_cloud:
             # now that we have all of the necessary transforms we can update the particle cloud
             self.initialize_particle_cloud(msg.header.stamp)
+            self.update_robot_pose()
         elif self.moved_far_enough_to_update(new_odom_xy_theta):
             # we have moved far enough to do an update!
-            self.update_particles_with_odom()    # update based on odometry
-            self.update_particles_with_laser(
+            self.move_particles_with_odom()    # update based on odometry
+            self.weight_particles_with_laser(
                 r, theta)   # update based on laser scan
             self.update_robot_pose()                # update robot's pose based on particles
             # resample particles to focus on areas of high density
@@ -249,7 +255,7 @@ class ParticleFilter(Node):
         else:
             self.get_logger().warn("Can't set map->odom transform since no odom data received")
 
-    def update_particles_with_odom(self):
+    def move_particles_with_odom(self):
         """ Update the particles using the newly given odometry pose.
             The function computes the value delta which is a tuple (x,y,theta)
             that indicates the change in position and angle between the odometry
@@ -340,7 +346,7 @@ class ParticleFilter(Node):
             raise Exception(
                 "New particles generated incorrectly! Desired particle total not reached")
 
-    def update_particles_with_laser(self, r, theta):
+    def weight_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
@@ -386,28 +392,26 @@ class ParticleFilter(Node):
         xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
             msg.pose.pose)
         self.initialize_particle_cloud(msg.header.stamp, xy_theta)
+        self.update_robot_pose()
 
     def initialize_particle_cloud(self, timestamp, xy_theta=None):
-        """ Initialize the particle cloud.
+        """ Initialize the particle cloud and update robot pose from cloud outputted. 
             Arguments
             xy_theta: a triple consisting of the mean x, y, and theta (yaw) to initialize the
                       particle cloud around.  If this input is omitted, the odometry will be used """
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
                 self.odom_pose)
-        xy_range = .3           # cartesian standard deviation
-        theta_range = 7        # angle degrees standard deviation
+        xy_range = .8           # cartesian soft max (3x standard deviation)
+        # angle radians soft max (3x standard deviation)
+        theta_range = pi/2
 
         self.particle_cloud = []
         for _ in range(self.n_particles):
-            self.particle_cloud.append(Particle(x=random.gauss(xy_theta[0], xy_range),
-                                                y=random.gauss(
-                                                    xy_theta[1], xy_range),
-                                                theta=random.gauss(xy_theta[2], theta_range), w=1.0))
-        self.particle_cloud.append(Particle())
+            self.particle_cloud.append(
+                Particle(x_pos=xy_theta[0], y_pos=xy_theta[1], pos_soft_max=xy_range, theta=xy_theta[2], theta_soft_max=theta_range))
 
         self.normalize_particles()
-        self.update_robot_pose()
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
