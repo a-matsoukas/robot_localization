@@ -33,7 +33,7 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized
     """
 
-    def __init__(self, parent_particle=None, pose_and_ranges={'coords':[(0.0, 0.0),.5],'theta':[0.0,pi/2]}):
+    def __init__(self, parent_particle=None, pose_and_ranges={'coords': [(0.0, 0.0), .5], 'theta': [0.0, pi/2]}):
         """ Construct a new Particle
             parent_particle: Particle object used to generate reseeded Particle object
             pose_and_ranges: Dictionary with string keys and list values. Item 0 in list is the value and 
@@ -48,11 +48,14 @@ class Particle(object):
 
         self.poses_and_ranges = pose_and_ranges
         self.w = 1.0
-        
+
         # use 1/3 of soft max ranges to get standard deviation for generation
-        self.theta = random.gauss(self.poses_and_ranges['theta'][0], self.poses_and_ranges['theta'][1]/3)
-        self.x = random.gauss(self.poses_and_ranges['coords'][0][0], self.poses_and_ranges['coords'][1]/3)
-        self.y = random.gauss(self.poses_and_ranges['coords'][0][1], self.poses_and_ranges['coords'][1]/3)
+        self.theta = random.gauss(
+            self.poses_and_ranges['theta'][0], self.poses_and_ranges['theta'][1]/3)
+        self.x = random.gauss(
+            self.poses_and_ranges['coords'][0][0], self.poses_and_ranges['coords'][1]/3)
+        self.y = random.gauss(
+            self.poses_and_ranges['coords'][0][1], self.poses_and_ranges['coords'][1]/3)
 
     def get_transform(self):
         """
@@ -401,12 +404,15 @@ class ParticleFilter(Node):
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
                 self.odom_pose)
         xy_range = .8           # cartesian soft max (3x standard deviation)
-        theta_range = pi/2        # angle radians soft max (3x standard deviation)
+        # angle radians soft max (3x standard deviation)
+        theta_range = pi/2
 
         self.particle_cloud = []
-        pose_and_ranges={'coords':[(xy_theta[0], xy_theta[1]),xy_range],'theta':[xy_theta[2],theta_range]}
+        pose_and_ranges = {'coords': [(xy_theta[0], xy_theta[1]), xy_range], 'theta': [
+            xy_theta[2], theta_range]}
         for _ in range(self.n_particles):
-            self.particle_cloud.append(Particle(pose_and_ranges=pose_and_ranges))
+            self.particle_cloud.append(
+                Particle(pose_and_ranges=pose_and_ranges))
 
         self.normalize_particles()
 
