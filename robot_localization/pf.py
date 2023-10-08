@@ -33,29 +33,28 @@ class Particle(object):
             w: the particle weight (the class does not ensure that particle weights are normalized
     """
 
-    def __init__(self, parent_particle=None, pose_and_ranges={'coords': [(0.0, 0.0), .5], 'theta': [0.0, pi/2]}):
+    def __init__(self, parent_particle=None, x_pos=0.0, y_pos=0.0, pos_soft_max=.5, theta=0.0, theta_soft_max=pi/2):
         """ Construct a new Particle
             parent_particle: Particle object used to generate reseeded Particle object
-            pose_and_ranges: Dictionary with string keys and list values. Item 0 in list is the value and 
-                item 2 is the soft maximum range (3 standard deviations gaussian) of the inputted value
-
-                pose_and_ranges values~
-                coords: [(x coord, y coord) floats of cartesian seed position, soft max range after randomizing]
-                theta: [float of angle in radians, float soft max angle range after randomizing]
+            x_pos: a float representing the x-coord (in map frame) around which particle should be initialized
+            y_pos: a float representing the y-coord (in map frame) around which particle should be initialized
+            pos_soft_max: a float representing three standard deviations of distance from x_pos and y_pos that
+                the new particle x and y should be within
+            theta: a float representing the angle (in radians) around which particle should be initialized
+            theta_soft_max: a float representing three standard deviations of angle from theta that the new
+                particle theta should be within
         """
-        if parent_particle:
-            pose_and_ranges = parent_particle.poses_and_ranges
-
-        self.poses_and_ranges = pose_and_ranges
-        self.w = 1.0
+        base_x = x_pos if parent_particle is None else parent_particle.x
+        base_y = y_pos if parent_particle is None else parent_particle.y
+        base_theta = theta if parent_particle is None else parent_particle.theta
 
         # use 1/3 of soft max ranges to get standard deviation for generation
-        self.theta = random.gauss(
-            self.poses_and_ranges['theta'][0], self.poses_and_ranges['theta'][1]/3)
-        self.x = random.gauss(
-            self.poses_and_ranges['coords'][0][0], self.poses_and_ranges['coords'][1]/3)
-        self.y = random.gauss(
-            self.poses_and_ranges['coords'][0][1], self.poses_and_ranges['coords'][1]/3)
+        self.x = random.gauss(base_x, pos_soft_max / 3)
+        self.y = random.gauss(base_y, pos_soft_max / 3)
+        self.theta = random.gauss(base_theta, theta_soft_max / 3)
+
+        # set weight to be 1.0 for new particles
+        self.w = 1.0
 
     def get_transform(self):
         """
@@ -408,11 +407,9 @@ class ParticleFilter(Node):
         theta_range = pi/2
 
         self.particle_cloud = []
-        pose_and_ranges = {'coords': [(xy_theta[0], xy_theta[1]), xy_range], 'theta': [
-            xy_theta[2], theta_range]}
         for _ in range(self.n_particles):
             self.particle_cloud.append(
-                Particle(pose_and_ranges=pose_and_ranges))
+                Particle(x_pos=xy_theta[0], y_pos=xy_theta[1], pos_soft_max=xy_range, theta=xy_theta[2], theta_soft_max=theta_range))
 
         self.normalize_particles()
 
