@@ -129,6 +129,9 @@ class ParticleFilter(Node):
 
         self.n_particles = 300          # the number of particles to use
 
+        # matrix to hold particle positions and thetas, size (3 x n_particles)
+        self.particle_positions_and_thetas = np.zeros((3, self.n_particles))
+
         # the amount of linear movement before performing an update
         self.d_thresh = 0.2
         # the amount of angular movement before performing an update
@@ -246,9 +249,21 @@ class ParticleFilter(Node):
         # first make sure that the particle weights are normalized
         self.normalize_particles()
 
-        # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
-        # just to get started we will fix the robot's pose to always be at the origin
-        self.robot_pose = Pose()
+        # loop through particles and grab their positions and angles
+        for i, particle in enumerate(self.particle_cloud):
+            self.particle_positions_and_thetas[:, i] = np.array(
+                [particle.x, particle.y, particle.theta])
+
+        # calculate the mean x, y, and theta of all the particles
+        mean_pose = np.mean(self.particle_positions_and_thetas, axis=1)
+
+        # convert mean orientation to quaternion
+        q = quaternion_from_euler(0, 0, mean_pose[2])
+
+        # update robot pose with mean position and quaternion orientation
+        self.robot_pose = Pose(position=Point(x=mean_pose[0], y=mean_pose[1], z=0.0),
+                               orientation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3]))
+
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
                                                             self.odom_pose)
@@ -313,14 +328,15 @@ class ParticleFilter(Node):
         """
         # points may come in normalized by update_robot_pose
 
-        # generate average value if each particle was equally weighted for step function
-        threshold = 1/self.n_particles
+        # particles in the top percentile of weight will be kept
+        percentile = 10
+        # num particles to keep
+        N = math.floor((percentile / 100) * len(self.particle_cloud))
 
-        # remove particles that exceed weight threshold
+        # remove particles - sort descending by weight and keep only the top N
         print(f"pre-resample: {len(self.particle_cloud)} particles")
-        for particle in self.particle_cloud:
-            if particle.w < threshold:
-                self.particle_cloud.remove(particle)
+        self.particle_cloud = sorted(self.particle_cloud,
+                                     key=lambda x: x.w, reverse=True)[:N]
         print(f"post-resample: {len(self.particle_cloud)} particles")
 
         if len(self.particle_cloud) == self.n_particles:
