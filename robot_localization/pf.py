@@ -146,7 +146,7 @@ class ParticleFilter(Node):
         self.pos_softmax_max = .5
         self.pos_softmax_min = .01
         self.theta_softmax_max = pi/2  # rad
-        self.theta_softmax_min = radians(1)  # 1 deg, in radians
+        self.theta_softmax_min = radians(2)  # small deg value, in rad
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(
