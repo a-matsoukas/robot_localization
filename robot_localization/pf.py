@@ -106,6 +106,7 @@ class ParticleFilter(Node):
             odom_frame: the name of the odometry coordinate frame (should be "odom" in most cases)
             scan_topic: the name of the scan topic to listen to (should be "scan" in most cases)
             n_particles: the number of particles in the filter
+            particle_positions_and_thetas: 3 x n_particles matrix holding particle positions and thetas
             d_thresh: the amount of linear movement before triggering a filter update
             a_thresh: the amount of angular movement before triggering a filter update
             pose_listener: a subscriber that listens for new approximate pose estimates (i.e. generated through the rviz GUI)
@@ -418,7 +419,7 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
                 self.odom_pose)
-        xy_range = .8           # cartesian soft max (3x standard deviation)
+        xy_range = .5          # cartesian soft max (3x standard deviation)
         # angle radians soft max (3x standard deviation)
         theta_range = pi/2
 
