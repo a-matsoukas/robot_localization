@@ -361,8 +361,6 @@ class ParticleFilter(Node):
         to_generate = self.n_particles-len(self.particle_cloud)
         weights = [particle.w for particle in self.particle_cloud]
 
-        # TODO: refactor so weights list is set up when checking particle weights against threshold
-
         # inline functions to determine how far from seed to resample new particle based on seed's weight
         def particle_pos_softmax(x): return (
             self.pos_softmax_min ** (N * x)) / (self.pos_softmax_max ** (N * x - 1))
