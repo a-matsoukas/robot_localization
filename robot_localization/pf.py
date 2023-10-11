@@ -14,7 +14,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Point, Quaternion
 from rclpy.duration import Duration
 import random
 import math
-from math import sin, cos, pi
+from math import sin, cos, pi, radians
 from scipy.stats import norm
 import time
 import numpy as np
@@ -106,8 +106,13 @@ class ParticleFilter(Node):
             odom_frame: the name of the odometry coordinate frame (should be "odom" in most cases)
             scan_topic: the name of the scan topic to listen to (should be "scan" in most cases)
             n_particles: the number of particles in the filter
+            particle_positions_and_thetas: 3 x n_particles matrix holding particle positions and thetas
             d_thresh: the amount of linear movement before triggering a filter update
             a_thresh: the amount of angular movement before triggering a filter update
+            pos_softmax_max: max value for 3x standard deviation when initializing around a point
+            pos_softmax_min: min value for 3x standard deviation when initializing around a point
+            theta_softmax_max: max value for 3x standard deviation when initializing around an angle
+            theta_softmax_min: min value for 3x standard deviation when initializing around an angle
             pose_listener: a subscriber that listens for new approximate pose estimates (i.e. generated through the rviz GUI)
             particle_pub: a publisher for the particle cloud
             last_scan_timestamp: this is used to keep track of the clock when using bags
@@ -136,6 +141,12 @@ class ParticleFilter(Node):
         self.d_thresh = 0.2
         # the amount of angular movement before performing an update
         self.a_thresh = math.pi/6
+
+        # set the min and max values of softmax for particle positions and thetas when initializing
+        self.pos_softmax_max = .5
+        self.pos_softmax_min = .01
+        self.theta_softmax_max = pi/2  # rad
+        self.theta_softmax_min = radians(2)  # small deg value, in rad
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(
@@ -329,7 +340,7 @@ class ParticleFilter(Node):
         # points may come in normalized by update_robot_pose
 
         # particles in the top percentile of weight will be kept
-        percentile = 10
+        percentile = 60
         # num particles to keep
         N = math.floor((percentile / 100) * len(self.particle_cloud))
 
@@ -350,13 +361,19 @@ class ParticleFilter(Node):
         to_generate = self.n_particles-len(self.particle_cloud)
         weights = [particle.w for particle in self.particle_cloud]
 
-        # TODO: refactor so weights list is set up when checking particle weights against threshold
+        # inline functions to determine how far from seed to resample new particle based on seed's weight
+        def particle_pos_softmax(x): return (
+            self.pos_softmax_min ** (N * x)) / (self.pos_softmax_max ** (N * x - 1))
+
+        def particle_theta_softmax(x): return (
+            self.theta_softmax_min ** (N * x)) / (self.theta_softmax_max ** (N * x - 1))
 
         # generate list of point objects based on likelihood from weight
         seeds = draw_random_sample(self.particle_cloud, weights, to_generate)
         for seed_particle in seeds:
             # feed parent particle to new particle as seed
-            self.particle_cloud.append(Particle(parent_particle=seed_particle))
+            self.particle_cloud.append(Particle(parent_particle=seed_particle, pos_soft_max=particle_pos_softmax(
+                seed_particle.w), theta_soft_max=particle_theta_softmax(seed_particle.w)))
 
         if len(self.particle_cloud) != self.n_particles:
             raise Exception(
@@ -418,14 +435,11 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(
                 self.odom_pose)
-        xy_range = .8           # cartesian soft max (3x standard deviation)
-        # angle radians soft max (3x standard deviation)
-        theta_range = pi/2
 
         self.particle_cloud = []
         for _ in range(self.n_particles):
             self.particle_cloud.append(
-                Particle(x_pos=xy_theta[0], y_pos=xy_theta[1], pos_soft_max=xy_range, theta=xy_theta[2], theta_soft_max=theta_range))
+                Particle(x_pos=xy_theta[0], y_pos=xy_theta[1], pos_soft_max=self.pos_softmax_max, theta=xy_theta[2], theta_soft_max=self.theta_softmax_max))
 
         self.normalize_particles()
 
