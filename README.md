@@ -31,7 +31,7 @@ A place where we had the opportunity to pursue modifications to the algorithm to
 >
   <div
     style=
-      "flex: 50%;
+      "flex: 33.33%;
       padding: 5px;"
   >
     <img 
@@ -41,7 +41,7 @@ A place where we had the opportunity to pursue modifications to the algorithm to
   </div>
   <div
     style=
-      "flex: 50%;
+      "flex: 33.33%;
       padding: 5px;"
   >
     <img 
