@@ -26,6 +26,18 @@ Loop Operations:
 - Remove and Resample poorly fitting particles
 - Locate the robot based on particle weights
 
+<figure
+    style=
+        "display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width:60%;"
+>
+    <img 
+        src="./images/statediagram_white.png"
+        alt="State diagram of the particle filter, covering the information taken in and returned by each of the portions of the filter (moving particles, updating particle weights, and normalizing and resampling the particles)"
+    >
+</figure>
 ##### Finer Points of our Implementation
 
 Movement Management: First, we created each particle with its own orientation and position, and thus its own internal reference frame. After each particle’s reference frame was recorded, we then applied neato motion within this reference frame to reach the particle’s final position after a movement was applied. The neato motion is calculated by expressing its odom position at the new time step in neato’s reference frame from the previous time step. Finally, so that we could compare particles to each other and to the robot we converted the final post-movement particle’s frame back into the map frame.
@@ -52,18 +64,6 @@ Resampling Particles: We establish a percentile (we chose 60) of particles to ke
 
 Locate robot: A couple of different options were explored for this feature. Initially, we wanted to explore clustering in the case that particles did not converge well, but this turned out to be very computationally expensive; due to good particle clustering upfront, we decided to choose the mean particle position. This has limitations in more symmetric environments, but worked very well in the gauntlet and MAC.
 
-<figure
-    style=
-        "display: block;
-        margin-left: auto;
-        margin-right: auto;
-        width:60%;"
->
-    <img 
-        src="./images/statediagram_white.png"
-        alt="State diagram of the particle filter, covering the information taken in and returned by each of the portions of the filter (moving particles, updating particle weights, and normalizing and resampling the particles)"
-    >
-</figure>
 
 ### Describe a design decision you had to make when working on your project and what you ultimately did (and why)?
 
