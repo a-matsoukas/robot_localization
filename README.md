@@ -31,18 +31,31 @@ A big part of where the particle filter slows down is in calculating weights for
 
 A place where we had the opportunity to pursue modifications to the algorithm to increase its effectiveness was during the resampling step. Specifically, we wanted to have the resample radius for each of the good seed particles to be variable, dependent on its weight, or confidence. Our final design decision was to decrease the standard deviation of resampled particles around each seed particle exponentially with the weight of the seed particle. This has the effect of gradually converging the particles around one final point; see the comparison below for the difference between when resample radius is constant (left) and when the resampled particles “know” the confidence of their seed particle (right).
 
-<p align="middle">
-  <img 
-    style="width: 25%"
-    src="./gifs/original_particles.gif"
-    alt="Resampling with constant radius"
+<figure
+  style=
+    "display: flex;"
+>
+  <div
+    style=
+      "flex: 50%;
+      padding: 5px;"
   >
-  <img 
-    style="width: 25%"
-    src="./gifs/converged_particles.gif"
-    alt="Resampling with adaptive radius"
+    <img 
+      src="./gifs/original_particles.gif"
+      alt="Resampling with constant radius"
+    >
+  </div>
+  <div
+    style=
+      "flex: 50%;
+      padding: 5px;"
   >
-</p>
+    <img 
+      src="./gifs/converged_particles.gif"
+      alt="Resampling with adaptive radius"
+    >
+  </div>
+</figure>
 
 During the initial scoping of this project, we decided that we wanted to engage in this code work in a more rigidly managed structure than is typically required in a two person project. We used github’s native issue and branch management tools to submit pull requests for each new code expansion, conducted code reviews before merging any code to the main branch, and used issues to control the scope and direction of our development. Although this structure seems cumbersome, it actually massively sped up development time because it provided a scaffolded, non-personal, and automatic structure to justify the many design decisions that we were faced with within the codebase itself. This also allowed us to easily see where we were going at any point in the development cycle, and track ourselves in relation to our overall goals to reduce or increase our scope when necessary. The most unexpected benefit of this design decision was that it was massively beneficial when we were reduced to one working linux install between the two of us.
 
