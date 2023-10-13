@@ -1,5 +1,7 @@
 # Robot Localization Project
 
+Team Members: Alex Matsoukas, Rajiv Perera
+
 Course: A Computational Introduction to Robotics, Fall 2023
 
 Professor: Paul Ruvolo
