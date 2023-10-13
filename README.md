@@ -61,13 +61,11 @@ During the initial scoping of this project, we decided that we wanted to engage 
 
 ### What if any challenges did you face along the way?
 
-- each add a few if needed
-- structure of helper functions and starter code (Alex)
-  - upderstanding flow of code
-  - conflict b/w what what would most effective vs. what is computationally good and what is necessary
-    - clustering algorithm to locate robot (Alex)
-- not being able to use linux (Rajiv)
-  - benefits of teaming design
+Early on, the largest challenge we faced was getting integrated into the starter code. We made sure that we spent some time to fully understand the flow of code in the particle filter node, as there were many helper functions that complicated the control structure. We found that the best was to understand how the code works was to implement a very quick pass through each of the missing components in the starter repository, and go back and refactor, optimize, and scale up once the behavior of the particles was as expected.
+
+As we got deeper into the implementation, another challenge was balancing what would be most effective and what is necessary and computationally efficient. A great example of this is when we tried to implement the method that picks the robot’s location, given the placement and weights of the particles. We thought it would be interesting to implement a clustering algorithm that groups the particles and returns the sizes and centroids of the clusters; this could be used if the particle filter ends up splitting into clusters instead of converging. It turns out that this was extremely computationally expensive, and we noticed that the particles were actually converging decently well, even right at the beginning; therefore, we decided a simpler and equally effective approach would be to use the mean particle pose as the robot’s pose.
+
+As mentioned previously, one of our linux installs was lost two days into the project. Luckily, the structure which we had chosen early on into the project lended itself to discretizing development chunks that could be reviewed before implementation. As a result, even though there was no way for Rajiv to test his code, he was still able to participate by building functionality in branches that would go to Alex for review before their merge. Though github and exception handling in tandem with thorough f-string print statement, Rajiv was still able to participate actively in development. Lastly, because this structure lended itself to frequent recalibrating discussions to create new issues and blaze the path forward in development, that soft-skills and management portion of the project was unaffected by access to linux and was of large emphasis and utility to the project flow.
 
 ### What would you do to improve your project if you had more time?
 
