@@ -1,6 +1,8 @@
-# Writeup (Due 10-13)
+# Robot Localization Project
 
-In your ROS package create a README.md file to hold your project writeup. Your writeup should touch on the following topics. We expect this writeup to be done in such a way that you are proud to include it as part of your professional portfolio. As such, please make sure to write the report so that it is understandable to an external audience. Make sure to add pictures to your report, links to Youtube videos, embedded animated Gifs (these can be recorded with the tool peek).
+Course: A Computational Introduction to Robotics, Fall 2023
+
+Professor: Paul Ruvolo
 
 ### What was the goal of your project?
 
