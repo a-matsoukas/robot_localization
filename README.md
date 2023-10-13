@@ -69,11 +69,11 @@ During the initial scoping of this project, we decided that we wanted to engage 
 - not being able to use linux (Rajiv)
   - benefits of teaming design
 
-### What would you do to improve your project if you had more time? (Alex)
+### What would you do to improve your project if you had more time?
 
-- each add more if needed
-- robot kidnapping (things that would need to change in this approach, ex: odom to update particles)
-- experiment with other weighting algorithms with direct comparisons (which converges first on the same bag file)
+We have a couple of areas of interest that we’d like to pursue if we had more time to improve the project. The first one would be to take on a more challenging variation of this problem, such as the robot kidnapping problem, in which the robot can be picked up and relocated at any time. Some of our assumptions and algorithmic approaches that worked for our project would not work for the robot kidnapping problem, which would require us to make the particle filter more robust. For example, while we can still update particles with the robot’s odometry, it wouldn’t make much sense if all of the particles are on the opposite side of the map from the robot after it has been kidnapped, and resampling around those particles would continue to yield bad results. Therefore, we would need to figure out a way to reseed particles across the entire map if we sense that the robot has been kidnapped.
+
+Additionally, we would like to look into and experiment with different weighting algorithms and make direct comparisons between them. By running different algorithms on the same bag file as a baseline, we can compare how different weighting algorithms affect how quickly the particles located the robot. Since we used a very simple weighting algorithm, described above, it would be interesting to see if something more complicated, such as assigning weights based on a gaussian curve, actually results in better performance.
 
 ### Did you learn any interesting lessons for future robotic programming projects? (Alex)
 
