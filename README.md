@@ -1,5 +1,7 @@
 # Robot Localization Project
 
+Team Members: Alex Matsoukas, Rajiv Perera
+
 Course: A Computational Introduction to Robotics, Fall 2023
 
 Professor: Paul Ruvolo
@@ -10,18 +12,44 @@ Robot localization is the field of robotics that uses sensor measurements and en
 
 A particle filter is an algorithm in robotics which typically initializes particles representing a simulated robot within a known map. It then compares their simulated sensor values to the robot’s actual sensor values to remove poorly matching points and place new points on top of well matching points, while moving each point in accordance with its pose and the robot movement data. Through this continual moving of points and resampling, the poorly fitting particles are removed and through repopulation of well fitting particles the highest weighted particles ideally approach the true position of the robot.
 
-### How did you solve the problem? (Rajiv)
+### How did you solve the problem?
 
-(Note: this doesn’t have to be super-detailed, you should try to explain what you did at a high-level so that others in the class could reasonably understand what you did).
+We solved this problem by implementing 5 main steps shared by almost all particle filter algorithms. In order, they are:
 
-[Rajiv Make State Diagram]
+First: create your particles. This is a step outside the loop, as it is done once.
 
-- moving particles with odom (including high-level overview of math) [Rajiv Draw]
-- updating weights with laser (original vs. optimization)
-- normalizing particle weights (and where)
-- resampling particles (new particle blind to parent vs. aware of parent weight) (Alex add/review)
-- locate robot (mean of particles - effective due to convergence of particles) (Alex)
-  - tried clustering - too slow
+Loop Operations:
+
+- Move particles with odometry data
+- Update particle weights with sensor data (in our case, lidar scans)
+- Normalize particle weights so that they sum to 1 for comparison
+- Remove and Resample poorly fitting particles
+- Locate the robot based on particle weights
+
+##### Finer Points of our Implementation
+
+Movement Management: First, we created each particle with its own orientation and position, and thus its own internal reference frame. After each particle’s reference frame was recorded, we then applied neato motion within this reference frame to reach the particle’s final position after a movement was applied. The neato motion is calculated by expressing its odom position at the new time step in neato’s reference frame from the previous time step. Finally, so that we could compare particles to each other and to the robot we converted the final post-movement particle’s frame back into the map frame.
+
+Updating particles with lidar scans: For every particle in the particle cloud, we apply the transformation from the particle frame to the map frame on the lidar data, and then check whether each point on the newly transformed scan lies within a threshold of a real obstacle. Because the true scan would be located on the transform true to the robot, the values of a scan that was coincident with the robot position would all line up with actual map points, would return many points within the threshold, and as a result be weighted highly.
+
+Normalizing particle weights: For the sorting and resampling methods we chose, it was necessary that all of the particle weights would sum to 1. After re-weighting the particles in accordance with the laser scans, we summed up the total weight of the particles and then divided each particle’s weight by the sum of all weight so that it was now represented as a fraction of the overall weight.
+
+Resampling Particles: We establish a percentile (we chose 60) of particles to keep, and then applied this threshold to a weight-sorted list of our particles. After removing the bottom percentile, we re-populated those particles around the surviving particles. We used a random sample with probabilities influenced by the weights of our surviving points to create a list of parents for the new particles which drew from these survivors. From these parent particles, we allow for the new particle’s standard deviations for the random sampling of position and orientation to be high in cases of low parent particle weight and low for cases of high parent particle weight.
+
+Locate robot: A couple of different options were explored for this feature. Initially, we wanted to explore clustering in the case that particles did not converge well, but this turned out to be very computationally expensive; due to good particle clustering upfront, we decided to choose the mean particle position. This has limitations in more symmetric environments, but worked very well in the gauntlet and MAC.
+
+<figure
+    style=
+        "display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width:60%;"
+>
+    <img 
+        src="./images/placeholder.svg"
+        alt="Placeholder"
+    >
+</figure>
 
 ### Describe a design decision you had to make when working on your project and what you ultimately did (and why)?
 
@@ -29,7 +57,7 @@ Because we decided to build off of the starter code, and the overall structure o
 
 A big part of where the particle filter slows down is in calculating weights for each particle after every resample. This is because, at a high level, each of the 360 lidar data points need to be evaluated for each particle. For our first pass through this algorithm this was implemented as a nested `for` loop that iterated through each particle and evaluated each data point one at a time, keeping track of a cumulative total; included in this was a transformation from polar to cartesian for each individual data point. This slowed our algorithm down so much that we needed to reduce the number of particles to less than 50 in order for it to run without significant lag. The outer `for` loop can not be avoided, as each particle has a unique reference frame; however, the evaluation of the lidar data was improved by transforming and evaluating the points all at once using matrix operations. Furthermore, we found that the simple approach of counting the number of lidar points whose distance from the map was below some acceptable threshold value was a sufficient and low-cost way to assign an overall weight to the particle, which removed the need to set up a gaussian function and apply it to all the data points.
 
-A place where we had the opportunity to pursue modifications to the algorithm to increase its effectiveness was during the resampling step. Specifically, we wanted to have the resample radius for each of the good seed particles to be variable, dependent on its weight, or confidence. Our final design decision was to decrease the standard deviation of resampled particles around each seed particle exponentially with the weight of the seed particle. This has the effect of gradually converging the particles around one final point; see the comparison below for the difference between when resample radius is constant (left) and when the resampled particles “know” the confidence of their seed particle (right).
+A place where we had the opportunity to pursue modifications to the algorithm to increase its effectiveness was during the resampling step. Specifically, we wanted to have the resample radius for each of the good seed particles to be variable, dependent on its weight, or confidence. Our final design decision was to decrease the standard deviation of resampled particles around a given seed particle exponentially as the weight of the seed particle increases. This has the effect of gradually converging the particles around one final point; see the comparison below for the difference between when resample radius is constant (left) and when the resampled particles “know” the confidence of their seed particle (right).
 
 <figure
   style=
