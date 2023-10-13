@@ -36,6 +36,20 @@ Normalizing particle weights: For the sorting and resampling methods we chose, i
 
 Resampling Particles: We establish a percentile (we chose 60) of particles to keep, and then applied this threshold to a weight-sorted list of our particles. After removing the bottom percentile, we re-populated those particles around the surviving particles. We used a random sample with probabilities influenced by the weights of our surviving points to create a list of parents for the new particles which drew from these survivors. From these parent particles, we allow for the new particle’s standard deviations for the random sampling of position and orientation to be high in cases of low parent particle weight and low for cases of high parent particle weight.
 
+<figure
+    style=
+        "display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width:600;
+        height:400"
+>
+    <img 
+        src="./images/parent-aware-resampling.png"
+        alt="State diagram of the particle filter, covering the information taken in and returned by each of the portions of the filter (moving particles, updating particle weights, and normalizing and resampling the particles)"
+    >
+</figure>
+
 Locate robot: A couple of different options were explored for this feature. Initially, we wanted to explore clustering in the case that particles did not converge well, but this turned out to be very computationally expensive; due to good particle clustering upfront, we decided to choose the mean particle position. This has limitations in more symmetric environments, but worked very well in the gauntlet and MAC.
 
 <figure
@@ -46,8 +60,8 @@ Locate robot: A couple of different options were explored for this feature. Init
         width:60%;"
 >
     <img 
-        src="./images/placeholder.svg"
-        alt="Placeholder"
+        src="./images/statediagram_white.png"
+        alt="State diagram of the particle filter, covering the information taken in and returned by each of the portions of the filter (moving particles, updating particle weights, and normalizing and resampling the particles)"
     >
 </figure>
 
