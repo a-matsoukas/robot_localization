@@ -73,15 +73,10 @@ We have a couple of areas of interest that we’d like to pursue if we had more 
 
 Additionally, we would like to look into and experiment with different weighting algorithms and make direct comparisons between them. By running different algorithms on the same bag file as a baseline, we can compare how different weighting algorithms affect how quickly the particles located the robot. Since we used a very simple weighting algorithm, described above, it would be interesting to see if something more complicated, such as assigning weights based on a gaussian curve, actually results in better performance.
 
-### Did you learn any interesting lessons for future robotic programming projects? (Alex)
+### Did you learn any interesting lessons for future robotic programming projects?
 
-These could relate to working on robotics projects in teams, working on more open-ended (and longer term) problems, or any other relevant topic.
+For this project, we decided to work with GitHub issues; this was our first time using this structure on an Olin project, and we both found it to be very helpful in tracking the flow of work over the course of the project. Each issue can be tied to its own development branch, which once merged into the main branch, closes the issue; in this way, the work is easily divisible. Furthermore, the pull request structure that is built into GitHub makes it easy to review code and suggest changes.
 
-- github issues - very helpful
-  - branches and PRs to catch partner up on code
-- good scoping on the project - steady workload across the three weeks
-- using the starter code still allowed us to investigate areas that we were excited about
+We also found that using the starter code still allowed us to pursue areas that we were each individually excited about. When scoping and breaking down the project at the start, we were worried that the starter code would be too constrictive and not allow us to make modifications to the algorithm; however, after doing an initial pass to get the particle filter working as an MVP, we had some time to explore algorithm improvements beyond the scope of what was in the starter code.
 
-### TODO for Writeup and Presentation
-
-- Diagrams/visuals (Rajiv)
+Finally, a key takeaway from this project is that it is important to scope future robotic programming projects appropriately. Because our development time was impacted by only having one ros environment for the majority of the project, we would have had a much harder time with an overscoped project. We were able to mitigate this largely through good team communication, clear delegation of work, and a good idea of how to break down the project early on.
