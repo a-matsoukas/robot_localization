@@ -87,7 +87,4 @@ These could relate to working on robotics projects in teams, working on more ope
 
 ### TODO for Writeup and Presentation
 
-- collect bag files and document in readme (Alex)
-- collect gif of algorithm running (Alex)
-  - also old version of resampling
 - Diagrams/visuals (Rajiv)
