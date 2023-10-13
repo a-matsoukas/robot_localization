@@ -27,11 +27,12 @@ A place where we had the opportunity to pursue modifications to the algorithm to
 
 <figure
   style=
-    "display: flex;"
+    "display: flex;
+    width:50%;"
 >
   <div
     style=
-      "flex: 33.33%;
+      "flex: 50%;
       padding: 5px;"
   >
     <img 
@@ -41,7 +42,7 @@ A place where we had the opportunity to pursue modifications to the algorithm to
   </div>
   <div
     style=
-      "flex: 33.33%;
+      "flex: 50%;
       padding: 5px;"
   >
     <img 
